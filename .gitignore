@@ -1,0 +1,130 @@
+# Audio files (source files)
+*.mp3
+*.wav
+*.m4a
+*.flac
+*.ogg
+*.aac
+*.wma
+
+# Transcription outputs
+*.json
+transcriptions/
+processed/
+
+# Temporary files
+*.tmp
+*.temp
+temp_*
+enhanced_*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+*.virtualenv
+
+# Environment variables
+.env.local
+.env.development
+.env.test
+.env.production
+
+# HuggingFace token and secrets
+.env
+*.token
+secrets.txt
+
+# PyTorch models cache
+.cache/
+models/
+*.pt
+*.pth
+*.bin
+
+# Whisper model cache
+~/.cache/whisper/
+
+# IDE and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+batch_report_*.json
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Large files that shouldn't be committed
+*.tar.gz
+*.zip
+*.rar
+
+# Sample data (keep structure but not actual files)
+mp3/sample_*
+mp3/test_*
+mp3/demo_*
+
+# But keep example files if they're small and important
+!example_transcription.json
+!sample_config.json 
