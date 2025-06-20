@@ -49,34 +49,67 @@ class BatchProcessor:
     
     def check_already_transcribed(self, file_path: str, output_dir: str = None) -> bool:
         """Check if a file has already been transcribed"""
-        # Determine where the transcription file would be
-        if output_dir:
-            transcription_path = os.path.join(
-                output_dir, 
-                f"{Path(file_path).stem}_transcription.json"
-            )
-        else:
-            # Check in transcriptions subfolder of the audio file's directory
-            audio_dir = os.path.dirname(file_path)
-            transcriptions_dir = os.path.join(audio_dir, "transcriptions")
-            transcription_path = os.path.join(
-                transcriptions_dir,
-                f"{Path(file_path).stem}_transcription.json"
-            )
-            
-            # Also check the old locations for backward compatibility
-            old_same_dir_path = os.path.join(audio_dir, f"{Path(file_path).stem}_transcription.json")
-            old_current_dir_path = f"{Path(file_path).stem}_transcription.json"
-            
-            # Check new location first, then old locations
-            if os.path.exists(transcription_path):
-                return True
-            elif os.path.exists(old_same_dir_path) or os.path.exists(old_current_dir_path):
-                return True
-            
-            return False
         
-        return os.path.exists(transcription_path)
+        console.print(f"[bold magenta]Checking for transcription of:[/bold magenta] {file_path}")
+
+        file_stem = Path(file_path).stem
+        
+        # Define potential transcription filenames
+        transcription_filenames = [
+            f"{file_stem}_transcription.json", # Standard name
+            f"{file_stem}.json" # For backward compatibility or different naming
+        ]
+        
+        # Check in specified output directory
+        if output_dir:
+            console.print(f"Checking in specified output directory: {output_dir}")
+            for fname in transcription_filenames:
+                check_path = os.path.join(output_dir, fname)
+                exists = os.path.exists(check_path)
+                console.print(f"  - Checking path: {check_path} -> {'[green]Exists[/green]' if exists else '[red]Not Found[/red]'}")
+                if exists:
+                    return True
+            return False
+
+        # If no output_dir, check default locations
+        audio_dir = os.path.dirname(file_path)
+        console.print(f"Checking in default locations relative to: {audio_dir}")
+
+        # Location 1: New standard location in "transcriptions" subdirectory
+        transcriptions_dir = os.path.join(audio_dir, "transcriptions")
+        console.print(f"  [bold]1. Transcriptions subdirectory:[/bold] {transcriptions_dir}")
+        for fname in transcription_filenames:
+            check_path = os.path.join(transcriptions_dir, fname)
+            exists = os.path.exists(check_path)
+            console.print(f"    - Checking path: {check_path} -> {'[green]Exists[/green]' if exists else '[red]Not Found[/red]'}")
+            if exists:
+                console.print(f"[bold green]Found existing transcription.[/bold green]")
+                return True
+
+        # Location 2: Old location in the same directory as the audio file
+        console.print(f"  [bold]2. Same directory as audio:[/bold] {audio_dir}")
+        for fname in transcription_filenames:
+            check_path = os.path.join(audio_dir, fname)
+            exists = os.path.exists(check_path)
+            console.print(f"    - Checking path: {check_path} -> {'[green]Exists[/green]' if exists else '[red]Not Found[/red]'}")
+            if exists:
+                console.print(f"[bold green]Found existing transcription.[/bold green]")
+                return True
+
+        # Location 3: Old location in the current working directory
+        cwd = os.getcwd()
+        console.print(f"  [bold]3. Current working directory:[/bold] {cwd}")
+        for fname in transcription_filenames:
+            # Note: This checks relative to CWD, which might be unexpected.
+            check_path = fname 
+            exists = os.path.exists(check_path)
+            console.print(f"    - Checking path: {check_path} -> {'[green]Exists[/green]' if exists else '[red]Not Found[/red]'}")
+            if exists:
+                console.print(f"[bold green]Found existing transcription.[/bold green]")
+                return True
+        
+        console.print("[bold yellow]No existing transcription found.[/bold yellow]")
+        return False
     
     def filter_unprocessed_files(self, file_paths: List[str], output_dir: str = None) -> Tuple[List[str], List[str]]:
         """Filter out already processed files and return unprocessed and already processed lists"""
@@ -345,13 +378,12 @@ class BatchProcessor:
 @click.option('--workers', '-w', default=2, help='Number of parallel workers')
 @click.option('--sequential', is_flag=True, help='Process files sequentially instead of parallel')
 @click.option('--report', '-r', help='Output file for batch report')
-@click.option('--skip-processed', is_flag=True, default=True, help='Skip files that have already been transcribed (default: True)')
-@click.option('--force-reprocess', is_flag=True, help='Force reprocessing of all files, even if already transcribed')
+@click.option('--force-reprocess', is_flag=True, help='Force reprocessing of all files, overriding the default of skipping them.')
 @click.option('--move-processed', is_flag=True, help='Move processed files (audio + transcription) to a "processed" subdirectory')
 @click.option('--use-pyannote', is_flag=True, help='Use advanced pyannote.audio speaker diarization (requires HuggingFace token)')
 @click.option('--enhanced', is_flag=True, default=True, help='Use enhanced audio preprocessing and transcription settings (default: True)')
 @click.option('--quality', type=click.Choice(['fast', 'balanced', 'high']), default='balanced', help='Quality preset: fast (tiny model), balanced (base/small), high (medium/large)')
-def main(directory, files, pattern, output_dir, model, device, language, workers, sequential, report, skip_processed, force_reprocess, move_processed, use_pyannote, enhanced, quality):
+def main(directory, files, pattern, output_dir, model, device, language, workers, sequential, report, force_reprocess, move_processed, use_pyannote, enhanced, quality):
     """
     Batch process multiple MP3 files for call transcription
     
@@ -397,10 +429,6 @@ def main(directory, files, pattern, output_dir, model, device, language, workers
             console.print("[cyan]Proceeding with enhanced heuristic method...[/cyan]")
             use_pyannote = False
     
-    # Force reprocess overrides skip processed
-    if force_reprocess:
-        skip_processed = False
-    
     # Determine files to process
     file_paths = []
     
@@ -425,8 +453,8 @@ def main(directory, files, pattern, output_dir, model, device, language, workers
         
         console.print(f"Found {len(all_files)} audio files in '{directory}'")
         
-        # Filter out already processed files if requested
-        if skip_processed:
+        # Filter out already processed files unless --force-reprocess is used
+        if not force_reprocess:
             unprocessed_files, already_processed = processor.filter_unprocessed_files(all_files, output_dir)
             file_paths = unprocessed_files
             
@@ -474,7 +502,7 @@ def main(directory, files, pattern, output_dir, model, device, language, workers
             console.print(f"[green]Processing {len(file_paths)} unprocessed files...[/green]")
         else:
             file_paths = all_files
-            console.print(f"Processing all {len(file_paths)} files (including already processed)...")
+            console.print(f"Processing all {len(file_paths)} files (forcing re-process)...")
     
     elif files:
         file_paths = list(files)
@@ -494,7 +522,7 @@ def main(directory, files, pattern, output_dir, model, device, language, workers
         )
         
         # Filter out already processed files if requested
-        if skip_processed:
+        if not force_reprocess:
             unprocessed_files, already_processed = processor.filter_unprocessed_files(file_paths, output_dir)
             file_paths = unprocessed_files
             

@@ -10,4 +10,5 @@ numpy>=1.24.0
 click>=8.1.0
 python-dotenv>=1.0.0
 rich>=13.7.0
-pathlib>=1.0.1 
+pathlib>=1.0.1
+openai 

@@ -127,4 +127,10 @@ mp3/demo_*
 
 # But keep example files if they're small and important
 !example_transcription.json
-!sample_config.json 
+!sample_config.json
+
+# Ignore audio files, transcriptions, and resumes
+mp3/
+
+# Ignore batch processing reports
+batch_report_*.json 
