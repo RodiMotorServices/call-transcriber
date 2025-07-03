@@ -124,31 +124,6 @@ class BatchProcessor:
         
         return unprocessed, already_processed
     
-    def move_processed_files(self, file_path: str, transcription_path: str, processed_dir: str = "processed"):
-        """Move processed audio and transcription files to processed directory"""
-        try:
-            # Create processed directory if it doesn't exist
-            if not os.path.exists(processed_dir):
-                os.makedirs(processed_dir)
-            
-            # Move audio file
-            audio_filename = os.path.basename(file_path)
-            new_audio_path = os.path.join(processed_dir, audio_filename)
-            if os.path.exists(file_path):
-                shutil.move(file_path, new_audio_path)
-            
-            # Move transcription file
-            if transcription_path and os.path.exists(transcription_path):
-                transcription_filename = os.path.basename(transcription_path)
-                new_transcription_path = os.path.join(processed_dir, transcription_filename)
-                shutil.move(transcription_path, new_transcription_path)
-            
-            return new_audio_path, new_transcription_path
-            
-        except Exception as e:
-            console.print(f"[yellow]Warning: Could not move files to processed directory: {e}[/yellow]")
-            return file_path, transcription_path
-
     def process_single_file(self, file_path: str, output_dir: str = None, move_processed: bool = False) -> Dict:
         """Process a single file and return results"""
         try:
@@ -185,22 +160,41 @@ class BatchProcessor:
             with open(result_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             
-            # Move files to processed directory if requested
+            # Move audio file to 'transcribed' directory if requested
             new_audio_path = file_path
-            new_transcription_path = result_file
-            
+            moved = False
             if move_processed:
-                processed_dir = os.path.join(os.path.dirname(file_path), "processed")
-                new_audio_path, new_transcription_path = self.move_processed_files(
-                    file_path, result_file, processed_dir
-                )
-            
+                console.print(f"\n[cyan]Attempting to move newly transcribed audio:[/cyan] [bold]{os.path.basename(file_path)}[/bold]")
+                try:
+                    source_path = os.path.abspath(file_path)
+                    
+                    # e.g., if file_path is './mp3/call.mp3', transcribed_dir is './mp3/transcribed/'
+                    audio_dir = os.path.dirname(file_path)
+                    transcribed_dir = os.path.join(audio_dir, "transcribed")
+                    
+                    if not os.path.exists(transcribed_dir):
+                        os.makedirs(transcribed_dir)
+                        console.print(f"  - Created directory: {os.path.abspath(transcribed_dir)}")
+                    
+                    target_path = os.path.join(transcribed_dir, os.path.basename(file_path))
+                    target_path = os.path.abspath(target_path)
+
+                    console.print(f"  - [bold]Source:[/bold] {source_path}")
+                    console.print(f"  - [bold]Target:[/bold] {target_path}")
+
+                    shutil.move(source_path, target_path)
+                    new_audio_path = target_path
+                    moved = True
+                    console.print(f"  - [green]Move successful![/green]")
+
+                except Exception as e:
+                    console.print(f"  - [bold red]Error moving file:[/bold red] {e}")
+
             return {
                 'file_path': file_path,
                 'output_path': result_file,
                 'final_audio_path': new_audio_path,
-                'final_transcription_path': new_transcription_path,
-                'moved_to_processed': move_processed,
+                'moved_to_processed': moved,
                 'success': True,
                 'processing_time': processing_time,
                 'duration': data['metadata']['total_duration'],
@@ -215,7 +209,6 @@ class BatchProcessor:
                 'file_path': file_path,
                 'output_path': None,
                 'final_audio_path': file_path,
-                'final_transcription_path': None,
                 'moved_to_processed': False,
                 'success': False,
                 'processing_time': 0,
@@ -350,7 +343,7 @@ class BatchProcessor:
                 {
                     'original_path': r['file_path'],
                     'final_audio_path': r.get('final_audio_path', r['file_path']),
-                    'final_transcription_path': r.get('final_transcription_path', r.get('output_path')),
+                    'final_transcription_path': r.get('output_path'),
                     'moved_to_processed': r.get('moved_to_processed', False)
                 }
                 for r in results if r['success']
@@ -379,7 +372,7 @@ class BatchProcessor:
 @click.option('--sequential', is_flag=True, help='Process files sequentially instead of parallel')
 @click.option('--report', '-r', help='Output file for batch report')
 @click.option('--force-reprocess', is_flag=True, help='Force reprocessing of all files, overriding the default of skipping them.')
-@click.option('--move-processed', is_flag=True, help='Move processed files (audio + transcription) to a "processed" subdirectory')
+@click.option('--move-processed', is_flag=True, help='Move processed audio files to a "transcribed" subdirectory.')
 @click.option('--use-pyannote', is_flag=True, help='Use advanced pyannote.audio speaker diarization (requires HuggingFace token)')
 @click.option('--enhanced', is_flag=True, default=True, help='Use enhanced audio preprocessing and transcription settings (default: True)')
 @click.option('--quality', type=click.Choice(['fast', 'balanced', 'high']), default='balanced', help='Quality preset: fast (tiny model), balanced (base/small), high (medium/large)')
@@ -459,47 +452,47 @@ def main(directory, files, pattern, output_dir, model, device, language, workers
             file_paths = unprocessed_files
             
             if already_processed:
-                console.print(f"[yellow]Skipping {len(already_processed)} already processed files[/yellow]")
+                console.print(f"[yellow]Skipping {len(already_processed)} already transcribed files[/yellow]")
                 for processed_file in already_processed[:5]:  # Show first 5
                     console.print(f"  - {Path(processed_file).name}")
                 if len(already_processed) > 5:
                     console.print(f"  ... and {len(already_processed) - 5} more")
+
+                # If move_processed is enabled, move these already transcribed files now
+                if move_processed:
+                    console.print("\n[cyan]Moving already transcribed audio to 'transcribed' directory...[/cyan]")
+                    transcribed_dir = os.path.join(directory, "transcribed")
+                    if not os.path.exists(transcribed_dir):
+                        os.makedirs(transcribed_dir)
+                        console.print(f"- Created directory for transcribed audio: {os.path.abspath(transcribed_dir)}")
+                    
+                    moved_count = 0
+                    for audio_file in already_processed:
+                        try:
+                            source_path = os.path.abspath(audio_file)
+                            target_path = os.path.abspath(os.path.join(transcribed_dir, os.path.basename(audio_file)))
+                            
+                            console.print(f"  - Moving [bold]{os.path.basename(source_path)}[/bold]")
+                            console.print(f"    - From: {source_path}")
+                            console.print(f"    - To:   {target_path}")
+
+                            if os.path.exists(source_path):
+                                shutil.move(source_path, target_path)
+                                moved_count += 1
+                            else:
+                                console.print(f"    - [yellow]Warning: Source file not found, likely already moved.[/yellow]")
+
+                        except Exception as e:
+                            console.print(f"    - [bold red]Error moving file:[/bold red] {e}")
+                    
+                    if moved_count > 0:
+                        console.print(f"[green]✅ Moved {moved_count} audio files to '{os.path.abspath(transcribed_dir)}'[/green]")
             
             if not file_paths:
-                console.print("[green]✅ All files in directory have already been processed![/green]")
-                if move_processed and already_processed:
-                    console.print("\n[cyan]Moving already processed files to 'processed' directory...[/cyan]")
-                    processed_dir = os.path.join(directory, "processed")
-                    for audio_file in already_processed:
-                        # Find corresponding transcription file in new or old locations
-                        transcription_file = None
-                        audio_dir = os.path.dirname(audio_file)
-                        
-                        # Check new transcriptions directory first
-                        new_transcription_path = os.path.join(
-                            audio_dir, "transcriptions",
-                            f"{Path(audio_file).stem}_transcription.json"
-                        )
-                        
-                        # Check old locations for backward compatibility
-                        old_same_dir_path = os.path.join(
-                            audio_dir,
-                            f"{Path(audio_file).stem}_transcription.json"
-                        )
-                        old_current_dir_path = f"{Path(audio_file).stem}_transcription.json"
-                        
-                        if os.path.exists(new_transcription_path):
-                            transcription_file = new_transcription_path
-                        elif os.path.exists(old_same_dir_path):
-                            transcription_file = old_same_dir_path
-                        elif os.path.exists(old_current_dir_path):
-                            transcription_file = old_current_dir_path
-                        
-                        processor.move_processed_files(audio_file, transcription_file, processed_dir)
-                    console.print(f"[green]✅ Moved {len(already_processed)} processed files to 'processed' directory[/green]")
+                console.print("\n[green]✅ All files in directory have already been transcribed and moved![/green]")
                 sys.exit(0)
             
-            console.print(f"[green]Processing {len(file_paths)} unprocessed files...[/green]")
+            console.print(f"\n[green]Processing {len(file_paths)} unprocessed files...[/green]")
         else:
             file_paths = all_files
             console.print(f"Processing all {len(file_paths)} files (forcing re-process)...")
@@ -527,10 +520,10 @@ def main(directory, files, pattern, output_dir, model, device, language, workers
             file_paths = unprocessed_files
             
             if already_processed:
-                console.print(f"[yellow]Skipping {len(already_processed)} already processed files[/yellow]")
+                console.print(f"[yellow]Skipping {len(already_processed)} already transcribed files[/yellow]")
             
             if not file_paths:
-                console.print("[green]✅ All specified files have already been processed![/green]")
+                console.print("[green]✅ All specified files have already been transcribed![/green]")
                 sys.exit(0)
     
     else:
@@ -551,7 +544,7 @@ def main(directory, files, pattern, output_dir, model, device, language, workers
     console.print(f"Features: [cyan]{', '.join(features)}[/cyan]")
     
     if move_processed:
-        console.print("[cyan]Files will be moved to 'processed' directory after transcription[/cyan]")
+        console.print("[cyan]Files will be moved to 'transcribed' directory after transcription[/cyan]")
     
     try:
         results = processor.process_files(
@@ -579,7 +572,7 @@ def main(directory, files, pattern, output_dir, model, device, language, workers
         summary_table.add_row("Success Rate", f"{(successful/len(results)*100):.1f}%" if len(results) > 0 else "0%")
         
         if move_processed:
-            summary_table.add_row("Moved to Processed", str(moved_count))
+            summary_table.add_row("Moved to Transcribed", str(moved_count))
         
         total_duration = sum(r['duration'] for r in results if r['success'])
         total_processing = sum(r['processing_time'] for r in results)
@@ -608,7 +601,7 @@ def main(directory, files, pattern, output_dir, model, device, language, workers
             console.print(f"📁 Transcriptions saved to: [cyan]{output_dir}[/cyan]")
         
         if move_processed and moved_count > 0:
-            console.print(f"📦 {moved_count} files moved to processed directory")
+            console.print(f"📦 {moved_count} audio files moved to 'transcribed' directory")
         
         # Quality recommendations
         if successful > 0:
