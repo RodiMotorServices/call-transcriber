@@ -1,3 +1,7 @@
+"""
+Transcriber for Caesar's Whisper Model
+"""
+
 from transformers import WhisperProcessor, WhisperForConditionalGeneration
 import torch
 import torchaudio

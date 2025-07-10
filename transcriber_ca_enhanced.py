@@ -1,3 +1,7 @@
+"""
+Slightly enhanced version of the Whisper Caesar transcription script.
+"""
+
 from transformers import WhisperProcessor, WhisperForConditionalGeneration
 import torch
 import torchaudio
