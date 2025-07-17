@@ -125,6 +125,9 @@ mp3/sample_*
 mp3/test_*
 mp3/demo_*
 
+# Whisper model files
+whisper-model
+
 # But keep example files if they're small and important
 !example_transcription.json
 !sample_config.json

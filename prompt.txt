@@ -1,0 +1,154 @@
+Analiza la siguiente transcripción de una llamada para RODI MOTOR SERVICES y clasifícala.
+
+Responde únicamente con un archivo YAML SIN ENCABEZADO con la siguiente estructura:
+
+id_llamada: <string>
+fecha_hora: <ISO 8601>
+tipo_vehiculo: <Moto | Coche | Camión | Furgoneta | Otro>
+
+tipologia:
+# Una de las siguientes categorías principales:
+
+- Quiere ir al taller
+- Coche en taller
+- Otros
+
+# En función de la tipología elegida, añade los subcampos correspondientes.
+
+# Si tipologia es "Quiere ir al taller":
+Quiere_ir_al_taller: <Nueva cita | Cambio de cita>
+
+# Si quiere_ir_al_taller = "Nueva cita":
+Nueva_cita:
+  tipologia_reparacion: [Neumáticos, Revisión/Mantenimiento, Mecánica Ligera,
+                         Mecánica Pesada, Recambio, Avería/Diagnóstico, Otros]   # Uno o varios
+
+    # Si la reparación tipologia_reparacion tiene Neumáticos:
+    Neumaticos: [incluye_presupuesto, permuta, cruce,
+                 cruzar_ruedas, equilibrado_neumaticos, rotar_ruedas_temporada,
+                 hinchado_nitrogeno, seguro_neumatico, valvulas, ruedas_en_custodia,
+                 pinchazo, rebenton, perdida_aire] # Uno o varios
+
+    # Si tipologia_reparacion tiene Revisión/Pre-ITV/Mantenimiento:
+    revision_mantenimiento: [incluye_preitv, revision, revision_oficial,
+                             mantenimiento, cambio_aceite, mirar_coche, cambio_filtros] # Uno o varios
+
+      # Si cambio_filtros en revision_mantenimiento SI:
+      cambio_filtros: [aceite, aire, habitaculo, combustible] # Uno o varios
+
+    # Si tipologia_reparacion contiene Mecánica Ligera:
+    mecanica_ligera: [alineacion, frenos, pastillas_frenos, discos_frenos,
+                      bujias, liquidos_frenos, sensor_presion_neumaticos,
+                      bateria, carga_gas, carga_aire_acondicionado] # Uno o varios
+
+    # Si tipologia_reparacion contiene Mecánica Pesada:
+    Mecanica_Pesada: [amortiguadores, alternador, suspension, correa_distribucion,
+                      bomba_agua, manguitos, corra_alternador, tubo_escape,
+                      embrague, volante_bimasa, cadena_distribucion, valvula_egr,
+                      motor, calentador, radiadores, pulir_faros,
+                      correas_transmision_auxiliares, transmision, trapezio,
+                      direccion, copelas, silentblocks, sonda_lambda,
+                      aceite_caja_cambios, valvulina, turbo, contacto,
+                      llaves, liquido_dirección, intercooler,
+                      compresor, catalizador, amortiguador_maletero,
+                      culata, tapa_balancines, frenos_motor,
+                      condensador, guardapolvos, rotulas,
+                      fuelles, poleas, reten, elevalunas, palier, cojinetes] # Uno o varios
+
+    # Si tipologia_reparacion contiene Recambio:
+    recambio: [escobillas, retrovisores, manetas, bombillas, lamparas,
+               faros, matriculas, cristales, lunas] # Uno o varios
+
+
+    # Si tipologia_reparacion contiene Avería/Diagnóstico:
+    averia_diagnostico: [perdida_aceite, perdida_liquido_refrigerante, no_arranca,
+                         hace_ruido, huele_fuerte, luz_tablero, ratea,
+                         no_corre, no_acelera, inyectores, fallo_electrico,
+                         sistema_lavado, pierde_fuerza] # Uno o varios
+
+  terminos_clave:
+    - <string>  # Ej: "cambio de aceite", "ITV", "frenos"
+
+  # Si tipologia_reparacion contiene neumaticos;
+  menciones_marca_neumaticos:
+    - <string>  # Ej: "Michelin", "Falken", "Pirelli", etc.
+
+  es_llamada_comercial: <SI | NO>
+  negociacion_abierta: <SI | NO>
+  confirmacion_datos: <SI | NO>     # Si se confirma o corrige algún dato del cliente
+  presupuesto: <SI | NO | ORIENTATIVO>
+  descuento: <SI | NO> # Si se ofrece un descuento al cliente
+  cita_concertada: <SI | NO | VUELVE A LLAMAR CLIENTE | VUELVE A LLAMAR OPERADOR | PENDIENTE AUTORIZACION RENTING>
+
+  # Si cita_concertada es = NO, añade el siguiente campo, de lo contrario, no lo añadas:
+  no_cita_concertada:
+    motivo: <Motivo | No se menciona>
+    persistencia_operador: <SI | NO>
+
+  # Si quiere_ir_al_taller = "Cambio de cita":
+  Cambio_de_cita:
+    tipo_cambio: <Avanzar | Retrasar | Cancelar>
+
+    # Si el tipo de cambio es Retrasar, añade detalles opcionales:
+    retrasar:
+      motivo_retraso: <Motivo | No se menciona>
+
+    # Si el tipo de cambio es Cancelar, añade detalles opcionales:
+    cancelar:
+      motivo_cancelacion: <Motivo | No se menciona>
+      persistencia_operador: <SI | NO> # Si el operador insiste en que el cliente agende una nueva cita
+
+# Si tipologia = "Coche en taller":
+Coche_en_taller:
+  consulta_estado:
+    Estado del vehículo : <Estado | No se menciona> # Estado del vehículo en el taller / Prevision de finalización / Diagnostico o presupuesto de un coche en taller
+    Estado del Material : <Estado | No se menciona> # Recepcion de alguna pieza o material / Disponibilidad de la pieza / Prevision de llegada de la pieza
+    Estado autorización : <Estado | No se menciona> # Autorizacion de un tercero (Empresa de renting) para realizar la reparación
+
+  prevision_finalizacion: <SI | NO>
+  prevision_llegada_pieza: <SI | NO>
+
+# Si tipologia es "Otros":
+Otros:
+  subcategoria_otros: <Información general | Facturas | Comunicación interna | Proveedores | Promoción | Consulta de reparacion reciente | Reclamación>
+
+sentimiento_cliente: <Positivo | Negativo | Neutral>
+
+# Valora cualitativaMENTE de las directrices empleadas (contesta por cada una que venga al caso si se ha aplicado o no) por el agente:
+valoracion_qualitativa:
+  directrices_generales:
+    - Solo muestra proactividad para presupuestar en neumáticos
+
+
+  # Si tipologia es "quiere_ir_al_taller" && quiere_ir_al_taller = "Nueva cita" && tipologia_reparacion contiene neumáticos:
+  directrizes_neumaticos:
+    - Habla de una marca de las 3 siguientes (RoadX, Falken, Pirelli)
+    - Menciona que el precio incluye montaje, equilibrado, valvula y IVA
+    - Menciona que el precio no incluye alineación
+    - Da al taller amplitud para el tiempo de reparación
+
+  # Si es un pinchazo:
+  directrizes_pinchazo:
+    - Averigua si la rueda pierde aire o el vehiculo no puede circular
+    - Da al taller amplitud para el tiempo de reparación
+    - Si el cliente insiste
+
+  # Si tipologia es "quiere_ir_al_taller" && quiere_ir_al_taller = "Nueva cita" && tipologia_reparacion contiene mecanica ligera:
+  directrizes_mecanica_ligera:
+    - Identifica correctamente el vehiculo
+    - Concreta cita sin dar precio
+    - Da al taller amplitud para el tiempo de reparación
+
+  # Si tipologia es "quiere_ir_al_taller" && quiere_ir_al_taller = "Nueva cita" && tipologia_reparacion contiene mecanica pesada:
+  directrizes_mecanica_pesada:
+    - No diagnostica por telefono, pasa a taller
+    - No se da precio ni tiempo de reparación
+    - Da a entender al cliente que el vehiculo debe quedar un tiempo prudencial en el taller
+
+  # Si el vehiculo es de renting:
+    - Da a entender al cliente que se debe pasar a taller para solicitar autorizacion al renting
+    - Da a entender que pasa para solicitar autorizacion y no para la reparación
+
+  # Si tipologia es coche_en_taller && consulta_estado:
+    - Existe satisfacción del cliente en la gestion
+    - Da a entender al cliente que si no se cumplira el terminio se le avisarà.
