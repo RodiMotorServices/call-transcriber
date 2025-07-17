@@ -178,74 +178,66 @@ class CallTranscriber:
             "duration": total_duration
         }
 
-    def pyannote_speaker_separation(self, audio_path: str, transcription_segments: List[Dict]) -> List[Dict]:
-        """Advanced speaker diarization using pyannote.audio"""
-        console.print("[cyan]Performing advanced speaker diarization with pyannote...[/cyan]")
+    def pyannote_speaker_separation(self, audio_path: str) -> List[Dict]:
+        """Diarize full audio, then transcribe each speaker segment separately."""
+        console.print("[cyan]Running pyannote speaker diarization and direct transcription per segment...[/cyan]")
 
         try:
-            # Apply diarization
+            # Load and prepare audio
+            waveform, sample_rate = torchaudio.load(audio_path)
+            if waveform.shape[0] > 1:
+                waveform = waveform.mean(dim=0, keepdim=True)
+            if sample_rate != 16000:
+                waveform = torchaudio.functional.resample(waveform, orig_freq=sample_rate, new_freq=16000)
+                sample_rate = 16000
+            waveform = waveform.squeeze().numpy()
+
+            # Step 1: Diarize
             diarization = self.diarization_pipeline(audio_path)
+            segments = []
 
-            # Convert pyannote segments to our format
-            speaker_segments = []
-            for segment, _, speaker in diarization.itertracks(yield_label=True):
-                speaker_segments.append({
-                    'start': segment.start,
-                    'end': segment.end,
-                    'speaker': speaker
-                })
+            for i, (turn, _, speaker) in enumerate(diarization.itertracks(yield_label=True)):
+                start = turn.start
+                end = turn.end
+                start_sample = int(start * sample_rate)
+                end_sample = int(end * sample_rate)
+                audio_chunk = waveform[start_sample:end_sample]
 
-            # Match transcription segments with speaker segments
-            separated_segments = []
-            for trans_seg in transcription_segments:
-                segment_text = trans_seg.get('text', '').strip()
-                if not segment_text:
-                    continue
+                # Step 2: Transcribe each speaker segment
+                inputs = self.processor(audio_chunk, sampling_rate=16000, return_tensors="pt")
+                input_features = inputs.input_features.to(self.device)
 
-                trans_start = trans_seg['start']
-                trans_end = trans_seg['end']
-                trans_mid = (trans_start + trans_end) / 2
+                with torch.no_grad():
+                    predicted_ids = self.model.generate(input_features)
+                    text = self.processor.batch_decode(predicted_ids, skip_special_tokens=True)[0].strip()
 
-                # Find the speaker segment that overlaps most with this transcription segment
-                best_speaker = "SPEAKER_00"  # Default
-                best_overlap = 0
+                speaker_label = (
+                    "AGENT" if speaker == "SPEAKER_00" else
+                    "CLIENT" if speaker == "SPEAKER_01" else
+                    speaker.upper()
+                )
 
-                for spk_seg in speaker_segments:
-                    overlap_start = max(trans_start, spk_seg['start'])
-                    overlap_end = min(trans_end, spk_seg['end'])
-                    overlap = max(0, overlap_end - overlap_start)
-
-                    if overlap > best_overlap:
-                        best_overlap = overlap
-                        best_speaker = spk_seg['speaker']
-
-                # Map speaker IDs to AGENT/CLIENT
-                # First speaker is usually the agent
-                if best_speaker == "SPEAKER_00":
-                    speaker_label = "AGENT"
-                elif best_speaker == "SPEAKER_01":
-                    speaker_label = "CLIENT"
-                else:
-                    # If more than 2 speakers, assign based on first occurrence
-                    speaker_label = "CLIENT" if len(
-                        [s for s in separated_segments if s.get('speaker') == "AGENT"]) > len(
-                        [s for s in separated_segments if s.get('speaker') == "CLIENT"]) else "AGENT"
-
-                separated_segments.append({
-                    'start': trans_seg['start'],
-                    'end': trans_seg['end'],
-                    'text': segment_text,
-                    'speaker': speaker_label
+                segments.append({
+                    "start": round(start, 2),
+                    "end": round(end, 2),
+                    "text": text if text else "[inaudible]",
+                    "speaker": speaker_label
                 })
 
             console.print(
-                f"[green]✅ Pyannote diarization complete - processed {len(separated_segments)} segments[/green]")
-            return separated_segments
+                f"[green]✅ Diarization and per-segment transcription complete ({len(segments)} segments)[/green]")
+            return segments
 
         except Exception as e:
             console.print(f"[yellow]⚠️  Pyannote diarization failed: {e}[/yellow]")
             console.print("[yellow]Falling back to enhanced heuristic method[/yellow]")
-            return self.enhanced_speaker_separation(transcription_segments, 0)
+            return self.enhanced_speaker_separation([], 0)
+
+
+        except Exception as e:
+            console.print(f"[yellow]⚠️  Pyannote diarization failed: {e}[/yellow]")
+            console.print("[yellow]Falling back to enhanced heuristic method[/yellow]")
+            return self.enhanced_speaker_separation([], 0)
 
     def enhanced_speaker_separation(self, segments: List[Dict], total_duration: float) -> List[Dict]:
         """
@@ -496,7 +488,7 @@ class CallTranscriber:
         return formatted_output
 
     def process_call(self, mp3_path: str, output_path: Optional[str] = None) -> str:
-        """Main processing function"""
+        """Main processing function — diarization-first when using pyannote"""
 
         if not os.path.exists(mp3_path):
             raise FileNotFoundError(f"Audio file not found: {mp3_path}")
@@ -527,35 +519,51 @@ class CallTranscriber:
                 raise Exception(f"Failed to preprocess audio: {str(e)}")
 
             try:
-                # Step 2: Transcribe
-                task2 = progress.add_task("Transcribing audio...", total=None)
-                try:
-                    transcription_result = self.transcribe_audio(wav_path)
-                    progress.remove_task(task2)
+                transcription_result = {}
+                separated_segments = []
+                duration = 0.0
 
-                    # Validate transcription result
-                    if not transcription_result or 'segments' not in transcription_result:
-                        raise Exception("Transcription failed - no segments returned")
+                # Step 2: Diarization-first path
+                if self.use_pyannote:
+                    task2 = progress.add_task("Running diarization and transcription...", total=None)
+                    try:
+                        separated_segments = self.pyannote_speaker_separation(wav_path)
 
-                except Exception as e:
-                    progress.remove_task(task2)
-                    raise Exception(f"Transcription failed: {str(e)}")
+                        # Get duration from audio file
+                        audio_info = torchaudio.info(wav_path)
+                        duration = audio_info.num_frames / audio_info.sample_rate
 
-                # Step 3: Speaker separation
-                task3 = progress.add_task("Separating speakers...", total=None)
-                try:
-                    if self.use_pyannote:
-                        separated_segments = self.pyannote_speaker_separation(wav_path,
-                                                                              transcription_result['segments'])
-                    else:
+                        progress.remove_task(task2)
+                    except Exception as e:
+                        progress.remove_task(task2)
+                        raise Exception(f"Speaker diarization+transcription failed: {str(e)}")
+
+                else:
+                    # Whisper-first fallback
+                    task2 = progress.add_task("Transcribing audio...", total=None)
+                    try:
+                        transcription_result = self.transcribe_audio(wav_path)
+                        progress.remove_task(task2)
+
+                        if not transcription_result or 'segments' not in transcription_result:
+                            raise Exception("Transcription failed - no segments returned")
+
+                    except Exception as e:
+                        progress.remove_task(task2)
+                        raise Exception(f"Transcription failed: {str(e)}")
+
+                    # Step 3: Heuristic speaker separation
+                    task3 = progress.add_task("Separating speakers...", total=None)
+                    try:
                         separated_segments = self.enhanced_speaker_separation(
                             transcription_result['segments'],
                             transcription_result.get('duration', 0)
                         )
-                    progress.remove_task(task3)
-                except Exception as e:
-                    progress.remove_task(task3)
-                    raise Exception(f"Speaker separation failed: {str(e)}")
+                        duration = transcription_result.get('duration', 0)
+                        progress.remove_task(task3)
+                    except Exception as e:
+                        progress.remove_task(task3)
+                        raise Exception(f"Speaker separation failed: {str(e)}")
 
                 # Step 4: Format for AI
                 task4 = progress.add_task("Formatting for AI consumption...", total=None)
@@ -563,8 +571,8 @@ class CallTranscriber:
                     formatted_result = self.format_for_ai(
                         separated_segments,
                         {
-                            'duration': transcription_result.get('duration', 0),
-                            'language': transcription_result.get('language', 'en')
+                            'duration': duration,
+                            'language': transcription_result.get('language', 'es')  # fallback
                         }
                     )
                     progress.remove_task(task4)
@@ -573,24 +581,15 @@ class CallTranscriber:
                     raise Exception(f"AI formatting failed: {str(e)}")
 
             finally:
-                # Clean up temporary file
                 if os.path.exists(wav_path):
                     os.remove(wav_path)
 
-        # Save output
+        # Step 5: Save output
         if output_path is None:
-            # Save in transcriptions subfolder of the audio file's directory
             audio_dir = os.path.dirname(mp3_path)
             transcriptions_dir = os.path.join(audio_dir, "transcriptions")
-
-            # Create transcriptions directory if it doesn't exist
-            if not os.path.exists(transcriptions_dir):
-                os.makedirs(transcriptions_dir)
-
-            output_path = os.path.join(
-                transcriptions_dir,
-                f"{Path(mp3_path).stem}_transcription.json"
-            )
+            os.makedirs(transcriptions_dir, exist_ok=True)
+            output_path = os.path.join(transcriptions_dir, f"{Path(mp3_path).stem}_transcription.json")
 
         try:
             with open(output_path, 'w', encoding='utf-8') as f:
@@ -599,7 +598,6 @@ class CallTranscriber:
             raise Exception(f"Failed to save output file: {str(e)}")
 
         console.print(f"[green]✅ Transcription saved to: {output_path}[/green]")
-
         return output_path
 
 
@@ -716,4 +714,4 @@ def main(mp3_file: str, output: str, model: str, device: str, preview: bool, use
 
 
 if __name__ == "__main__":
-    main() 
+    main()
