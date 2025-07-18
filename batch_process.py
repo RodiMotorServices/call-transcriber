@@ -22,7 +22,7 @@ from rich.table import Table
 from rich.panel import Panel
 
 # Import our main transcriber
-from main import CallTranscriber
+from main2 import CallTranscriber
 
 console = Console()
 
@@ -485,9 +485,7 @@ def main(directory, files, pattern, output_dir, device, workers, sequential, rep
                 sys.exit(1)
         
         processor = BatchProcessor(
-            model=model, 
-            device=device, 
-            language=language, 
+            device=device,
             max_workers=workers,
             use_pyannote=use_pyannote,
             enhanced=enhanced
