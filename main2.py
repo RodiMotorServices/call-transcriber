@@ -228,11 +228,13 @@ class CallTranscriber:
                 input_features = inputs.input_features.to(self.device)
 
                 with torch.no_grad():
+                    prompt_text = "Llamada de servicio de un taller mecánico llamado RODI"
+                    prompt_ids = self.processor.tokenizer(prompt_text, return_tensors="pt").input_ids.to(self.device)
                     predicted_ids = self.model.generate(
                         input_features,
                         do_sample=False,
                         repetition_penalty=1.2,
-                        decoder_input_ids="Llamada de servicio de un taller mecánico llamado RODI",
+                        decoder_input_ids= prompt_ids
                     )
                     text = self.processor.batch_decode(predicted_ids, skip_special_tokens=True)[0].strip()
 
