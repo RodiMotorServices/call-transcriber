@@ -231,8 +231,8 @@ class CallTranscriber:
                     predicted_ids = self.model.generate(
                         input_features,
                         do_sample=False,
-                        num_beams=5,
-                        repetition_penalty=1.2
+                        repetition_penalty=1.2,
+                        decode_input_ids="Llamada de servicio de un taller mecánico llamado RODI",
                     )
                     text = self.processor.batch_decode(predicted_ids, skip_special_tokens=True)[0].strip()
 
