@@ -179,7 +179,7 @@ class CallTranscriber:
         }
 
     def pyannote_speaker_separation(self, audio_path: str) -> List[Dict]:
-        """Diarize full audio, then transcribe each speaker segment separately."""
+        """Diarize full audio, then transcribe each speaker segment separately with filtering."""
         console.print("[cyan]Running pyannote speaker diarization and direct transcription per segment...[/cyan]")
 
         try:
@@ -196,20 +196,47 @@ class CallTranscriber:
             diarization = self.diarization_pipeline(audio_path)
             segments = []
 
+            last_text = ""
+            last_end = 0.0
+
             for i, (turn, _, speaker) in enumerate(diarization.itertracks(yield_label=True)):
                 start = turn.start
                 end = turn.end
-                start_sample = int(start * sample_rate)
-                end_sample = int(end * sample_rate)
-                audio_chunk = waveform[start_sample:end_sample]
+                duration = end - start
 
-                # Step 2: Transcribe each speaker segment
+                if duration < 0.7:
+                    audio_chunk = waveform[int(start * sample_rate):int(end * sample_rate)]
+                    energy = np.mean(np.abs(audio_chunk))
+                    if energy < 0.01:
+                        continue  # skip short + low energy
+                else:
+                    audio_chunk = waveform[int(start * sample_rate):int(end * sample_rate)]
+
+                # Transcribe each speaker segment
                 inputs = self.processor(audio_chunk, sampling_rate=16000, return_tensors="pt")
                 input_features = inputs.input_features.to(self.device)
 
                 with torch.no_grad():
-                    predicted_ids = self.model.generate(input_features)
+                    predicted_ids = self.model.generate(
+                        input_features,
+                        do_sample=False,
+                        repetition_penalty=1.2
+                    )
                     text = self.processor.batch_decode(predicted_ids, skip_special_tokens=True)[0].strip()
+
+                if not text:
+                    continue
+
+                # Deduplicate repeated fillers
+                if (
+                        text.lower() == last_text.lower() and
+                        (start - last_end) < 1.0 and
+                        text.lower() in ["gracias", "vale", "sí", "bueno"]
+                ):
+                    continue
+
+                last_text = text
+                last_end = end
 
                 speaker_label = (
                     "AGENT" if speaker == "SPEAKER_00" else
@@ -232,6 +259,7 @@ class CallTranscriber:
             console.print(f"[yellow]⚠️  Pyannote diarization failed: {e}[/yellow]")
             console.print("[yellow]Falling back to enhanced heuristic method[/yellow]")
             return self.enhanced_speaker_separation([], 0)
+
 
 
         except Exception as e:

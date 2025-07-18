@@ -27,9 +27,9 @@ from main import CallTranscriber
 console = Console()
 
 class BatchProcessor:
-    def __init__(self, model: str = "base", device: str = "auto", language: str = "auto", max_workers: int = 2, use_pyannote: bool = False, enhanced: bool = True):
+    def __init__(self, model: str = "base", device: str = "auto", max_workers: int = 2, use_pyannote: bool = False, enhanced: bool = True):
         """Initialize batch processor"""
-        self.transcriber = CallTranscriber(whisper_model=model, device=device, language=language, use_pyannote=use_pyannote)
+        self.transcriber = CallTranscriber(whisper_model=model, device=device, use_pyannote=use_pyannote)
         self.max_workers = max_workers
         self.results = []
         self.enhanced = enhanced
@@ -365,9 +365,7 @@ class BatchProcessor:
 @click.option('--files', '-f', multiple=True, help='Specific files to process')
 @click.option('--pattern', '-p', default='*.mp3', help='File pattern to match (default: *.mp3)')
 @click.option('--output-dir', '-o', help='Output directory for transcriptions')
-@click.option('--model', '-m', default='base', help='Whisper model size')
 @click.option('--device', default='auto', help='Device to use (auto, cpu, cuda, mps)')
-@click.option('--language', '-l', default='auto', help='Language code (auto, es, en, fr, de, pt, it, etc.)')
 @click.option('--workers', '-w', default=2, help='Number of parallel workers')
 @click.option('--sequential', is_flag=True, help='Process files sequentially instead of parallel')
 @click.option('--report', '-r', help='Output file for batch report')
@@ -376,7 +374,7 @@ class BatchProcessor:
 @click.option('--use-pyannote', is_flag=True, help='Use advanced pyannote.audio speaker diarization (requires HuggingFace token)')
 @click.option('--enhanced', is_flag=True, default=True, help='Use enhanced audio preprocessing and transcription settings (default: True)')
 @click.option('--quality', type=click.Choice(['fast', 'balanced', 'high']), default='balanced', help='Quality preset: fast (tiny model), balanced (base/small), high (medium/large)')
-def main(directory, files, pattern, output_dir, model, device, language, workers, sequential, report, force_reprocess, move_processed, use_pyannote, enhanced, quality):
+def main(directory, files, pattern, output_dir, device, workers, sequential, report, force_reprocess, move_processed, use_pyannote, enhanced, quality):
     """
     Batch process multiple MP3 files for call transcription
     
@@ -392,25 +390,7 @@ def main(directory, files, pattern, output_dir, model, device, language, workers
         "Process multiple audio files with advanced speaker separation",
         border_style="blue"
     ))
-    
-    # Apply quality presets
-    if quality == 'fast':
-        if model == 'base':  # Only override if user didn't specify
-            model = 'tiny'
-        enhanced = False
-        workers = min(workers, 4)  # More workers for faster processing
-        console.print("[yellow]Using FAST preset: tiny model, basic processing[/yellow]")
-    elif quality == 'high':
-        if model == 'base':  # Only override if user didn't specify
-            model = 'large'
-        enhanced = True
-        workers = min(workers, 2)  # Fewer workers for memory management
-        console.print("[yellow]Using HIGH quality preset: large model, enhanced processing[/yellow]")
-    else:  # balanced
-        if model == 'base':
-            model = 'medium' if language != 'auto' else 'base'
-        console.print("[yellow]Using BALANCED preset: optimized quality/speed[/yellow]")
-    
+
     # Pyannote.audio setup warning
     if use_pyannote:
         if not os.getenv('HUGGINGFACE_TOKEN'):
@@ -431,9 +411,8 @@ def main(directory, files, pattern, output_dir, model, device, language, workers
             sys.exit(1)
         
         processor = BatchProcessor(
-            model=model, 
-            device=device, 
-            language=language, 
+            model="whisper-model",
+            device=device,
             max_workers=workers,
             use_pyannote=use_pyannote,
             enhanced=enhanced
@@ -539,8 +518,7 @@ def main(directory, files, pattern, output_dir, model, device, language, workers
         features.append("Advanced Speaker Diarization")
     else:
         features.append("Enhanced Heuristic Speaker Separation")
-    
-    console.print(f"Model: [cyan]{model}[/cyan] | Language: [cyan]{language}[/cyan] | Device: [cyan]{device}[/cyan]")
+
     console.print(f"Features: [cyan]{', '.join(features)}[/cyan]")
     
     if move_processed:
