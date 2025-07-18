@@ -183,7 +183,7 @@ class CallTranscriber:
         console.print("[cyan]Running pyannote speaker diarization and direct transcription per segment...[/cyan]")
 
         try:
-            # Load and prepare audio
+            # Load audio
             waveform, sample_rate = torchaudio.load(audio_path)
             if waveform.shape[0] > 1:
                 waveform = waveform.mean(dim=0, keepdim=True)
@@ -194,25 +194,36 @@ class CallTranscriber:
 
             # Step 1: Diarize
             diarization = self.diarization_pipeline(audio_path)
-            segments = []
 
+            # Step 2: Collect raw speaker segments
+            speaker_segments = {}
+            for turn, _, speaker in diarization.itertracks(yield_label=True):
+                speaker_segments.setdefault(speaker, []).append((turn.start, turn.end))
+
+            # Step 3: Assign consistent speaker roles
+            sorted_speakers = sorted(speaker_segments.items(), key=lambda kv: sum(e - s for s, e in kv[1]),
+                                     reverse=True)
+            speaker_mapping = {}
+            if len(sorted_speakers) >= 2:
+                speaker_mapping[sorted_speakers[0][0]] = "AGENT"
+                speaker_mapping[sorted_speakers[1][0]] = "CLIENT"
+            else:
+                speaker_mapping[sorted_speakers[0][0]] = "AGENT"
+
+            # Step 4: Transcribe each segment
+            segments = []
             last_text = ""
             last_end = 0.0
 
-            for i, (turn, _, speaker) in enumerate(diarization.itertracks(yield_label=True)):
+            for turn, _, speaker in diarization.itertracks(yield_label=True):
                 start = turn.start
                 end = turn.end
                 duration = end - start
 
-                if duration < 0.7:
-                    audio_chunk = waveform[int(start * sample_rate):int(end * sample_rate)]
-                    energy = np.mean(np.abs(audio_chunk))
-                    if energy < 0.01:
-                        continue  # skip short + low energy
-                else:
-                    audio_chunk = waveform[int(start * sample_rate):int(end * sample_rate)]
+                audio_chunk = waveform[int(start * sample_rate):int(end * sample_rate)]
+                if duration < 0.7 and np.mean(np.abs(audio_chunk)) < 0.01:
+                    continue
 
-                # Transcribe each speaker segment
                 inputs = self.processor(audio_chunk, sampling_rate=16000, return_tensors="pt")
                 input_features = inputs.input_features.to(self.device)
 
@@ -220,6 +231,7 @@ class CallTranscriber:
                     predicted_ids = self.model.generate(
                         input_features,
                         do_sample=False,
+                        num_beams=5,
                         repetition_penalty=1.2
                     )
                     text = self.processor.batch_decode(predicted_ids, skip_special_tokens=True)[0].strip()
@@ -227,44 +239,29 @@ class CallTranscriber:
                 if not text:
                     continue
 
-                # Deduplicate repeated fillers
+                # Remove short duplicates like "gracias" if they appear repeatedly
                 if (
-                        text.lower() == last_text.lower() and
-                        (start - last_end) < 1.0 and
-                        text.lower() in ["gracias", "vale", "sí", "bueno"]
+                        text.lower() == last_text.lower()
+                        and (start - last_end) < 1.0
+                        and text.lower() in {"gracias", "vale", "sí", "bueno", "ok"}
                 ):
                     continue
 
                 last_text = text
                 last_end = end
 
-                speaker_label = (
-                    "AGENT" if speaker == "SPEAKER_00" else
-                    "CLIENT" if speaker == "SPEAKER_01" else
-                    speaker.upper()
-                )
-
                 segments.append({
                     "start": round(start, 2),
                     "end": round(end, 2),
-                    "text": text if text else "[inaudible]",
-                    "speaker": speaker_label
+                    "text": text,
+                    "speaker": speaker_mapping.get(speaker, speaker.upper())
                 })
 
-            console.print(
-                f"[green]✅ Diarization and per-segment transcription complete ({len(segments)} segments)[/green]")
+            console.print(f"[green]✅ Diarization complete - {len(segments)} clean segments[/green]")
             return segments
 
         except Exception as e:
-            console.print(f"[yellow]⚠️  Pyannote diarization failed: {e}[/yellow]")
-            console.print("[yellow]Falling back to enhanced heuristic method[/yellow]")
-            return self.enhanced_speaker_separation([], 0)
-
-
-
-        except Exception as e:
-            console.print(f"[yellow]⚠️  Pyannote diarization failed: {e}[/yellow]")
-            console.print("[yellow]Falling back to enhanced heuristic method[/yellow]")
+            console.print(f"[yellow]⚠️ Pyannote diarization failed: {e}[/yellow]")
             return self.enhanced_speaker_separation([], 0)
 
     def enhanced_speaker_separation(self, segments: List[Dict], total_duration: float) -> List[Dict]:
