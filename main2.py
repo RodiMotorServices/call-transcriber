@@ -215,11 +215,6 @@ class CallTranscriber:
             last_text = ""
             last_end = 0.0
 
-            prompt_text = "Llamada de servicio de un taller mecánico llamado RODI"
-            prompt_ids = self.processor.tokenizer(prompt_text, return_tensors="pt").input_ids.to(self.device)
-
-            first_segment = True  # flag to use prompt only for the first segment
-
             for turn, _, speaker in diarization.itertracks(yield_label=True):
                 start = turn.start
                 end = turn.end
@@ -233,30 +228,17 @@ class CallTranscriber:
                 input_features = inputs.input_features.to(self.device)
 
                 with torch.no_grad():
-                    if first_segment:
-                        forced_decoder_ids = [(i, token_id.item()) for i, token_id in enumerate(prompt_ids[0])]
-                        predicted_ids = self.model.generate(
-                            input_features,
-                            do_sample=False,
-                            repetition_penalty=1.2,
-                            forced_decoder_ids=forced_decoder_ids
-                        )
-                        first_segment = False
-                    else:
-                        predicted_ids = self.model.generate(
-                            input_features,
-                            do_sample=False,
-                            repetition_penalty=1.2
-                        )
-
+                    predicted_ids = self.model.generate(
+                        input_features,
+                        do_sample=False,
+                        repetition_penalty=1.2,
+                    )
                     text = self.processor.batch_decode(predicted_ids, skip_special_tokens=True)[0].strip()
-
-                    if text.lower().startswith(prompt_text.lower()):
-                        text = text[len(prompt_text):].strip()
 
                 if not text:
                     continue
 
+                # Remove short duplicates like "gracias" if they appear repeatedly
                 if (
                         text.lower() == last_text.lower()
                         and (start - last_end) < 1.0
