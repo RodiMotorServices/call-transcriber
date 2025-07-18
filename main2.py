@@ -232,7 +232,6 @@ class CallTranscriber:
                         input_features,
                         do_sample=False,
                         repetition_penalty=1.2,
-                        decode_input_ids="Llamada de servicio de un taller mecánico llamado RODI",
                     )
                     text = self.processor.batch_decode(predicted_ids, skip_special_tokens=True)[0].strip()
 
