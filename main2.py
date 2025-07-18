@@ -224,7 +224,12 @@ class CallTranscriber:
                 if duration < 0.7 and np.mean(np.abs(audio_chunk)) < 0.01:
                     continue
 
-                inputs = self.processor(audio_chunk, sampling_rate=16000, return_tensors="pt")
+                inputs = self.processor(
+                    audio_chunk,
+                    sampling_rate=16000,
+                    return_tensors="pt",
+                    return_attention_mask=True
+                )
                 input_features = inputs.input_features.to(self.device)
 
                 with torch.no_grad():
