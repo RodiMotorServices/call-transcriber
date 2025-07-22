@@ -1,6 +1,6 @@
 Analiza la siguiente transcripción de una llamada para RODI MOTOR SERVICES y clasifícala.
 
-Responde únicamente con un archivo YAML SIN ENCABEZADO con la siguiente estructura:
+**Prioriza el motivo principal de la llamada** Responde únicamente con el contenido de un archivo YAML. **NO INCLUYAS NINGÚN ENCABEZADO, TEXTO INTRODUCTORIO, CONCLUSIÓN, EXPLICACIÓN ADICIONAL NI MARCADORES DE BLOQUE DE CÓDIGO (es decir, NO uses ```yaml ni ```).** La estructura de la respuesta debe ser EXACTAMENTE la siguiente:
 
 id_llamada: <string>
 fecha_hora: <ISO 8601>
@@ -20,6 +20,13 @@ Quiere_ir_al_taller: <Nueva cita | Cambio de cita>
 
 # Si quiere_ir_al_taller = "Nueva cita":
 Nueva_cita:
+
+  # Incluye la categoria averia/diagnostico UNICAMENTE si el cliente describe UN SÍNTOMA CLARO de que el vehículo NO funciona correctamente (ej. ruido, pérdida de líquido, no arranca)
+  # o si SOLICITA EXPLÍCITAMENTE un proceso de diagnóstico para identificar la causa de un mal funcionamiento ya presente.
+  # NO incluir 'Avería/Diagnóstico' si la llamada es para una revisión, pre-ITV, o mantenimiento GENERAL, incluso si el objetivo es pasar una inspección (ITV).
+  # La mención de 'ITV' por sí sola NO implica 'Avería/Diagnóstico' a menos que el cliente describa una falla específica.
+  # Considera rellenar el nivel de aceite unicamente como una revision.
+
   tipologia_reparacion: [Neumáticos, Revisión/Mantenimiento, Mecánica Ligera,
                          Mecánica Pesada, Recambio, Avería/Diagnóstico, Otros]   # Uno o varios
 
@@ -71,42 +78,42 @@ Nueva_cita:
 
   # Si tipologia_reparacion contiene neumaticos;
   menciones_marca_neumaticos:
-    - <string>  # Ej: "Michelin", "Falken", "Pirelli", etc.
+    - <string>  # Ej: "Michelin", "Falken", "Pirelli", "Kleber", "Dunlop", etc.
 
-  es_llamada_comercial: <SI | NO>
-  negociacion_abierta: <SI | NO>
+  es_llamada_comercial: <SI | NO> # Se considerara comercial cualquier llamada donde se intenta llegar a un acuerdo de visita o venta, aunque llame el cliente
+  presupuesto: <SI | NO | ORIENTATIVO>  # Si se ofrece un presupesto al cliente o se le da un precio orientativo (no definitivo)
+
   confirmacion_datos: <SI | NO>     # Si se confirma o corrige algún dato del cliente
-  presupuesto: <SI | NO | ORIENTATIVO>
   descuento: <SI | NO> # Si se ofrece un descuento al cliente
-  cita_concertada: <SI | NO | VUELVE A LLAMAR CLIENTE | VUELVE A LLAMAR OPERADOR | PENDIENTE AUTORIZACION RENTING>
+  cita_concertada: <SI | NO>
 
   # Si cita_concertada es = NO, añade el siguiente campo, de lo contrario, no lo añadas:
   no_cita_concertada:
-    motivo: <Motivo | No se menciona>
+    motivo: <VUELVE A LLAMAR CLIENTE | VUELVE A LLAMAR OPERADOR | PENDIENTE AUTORIZACION RENTING>
     persistencia_operador: <SI | NO>
 
-  # Si quiere_ir_al_taller = "Cambio de cita":
-  Cambio_de_cita:
-    tipo_cambio: <Avanzar | Retrasar | Cancelar>
+# Si quiere_ir_al_taller = "Cambio de cita":
+Cambio_de_cita:
+  tipo_cambio: <Avanzar | Retrasar | Cancelar>
 
-    # Si el tipo de cambio es Retrasar, añade detalles opcionales:
-    retrasar:
-      motivo_retraso: <Motivo | No se menciona>
+  # Si el tipo de cambio es Retrasar, añade detalles opcionales:
+  retrasar:
+    motivo_retraso: <Motivo | No se menciona>
 
-    # Si el tipo de cambio es Cancelar, añade detalles opcionales:
-    cancelar:
-      motivo_cancelacion: <Motivo | No se menciona>
-      persistencia_operador: <SI | NO> # Si el operador insiste en que el cliente agende una nueva cita
+  # Si el tipo de cambio es Cancelar, añade detalles opcionales:
+  cancelar:
+    motivo_cancelacion: <Motivo | No se menciona>
+    persistencia_operador: <SI | NO> # Si el operador insiste en que el cliente agende una nueva cita
 
 # Si tipologia = "Coche en taller":
 Coche_en_taller:
   consulta_estado:
-    Estado del vehículo : <Estado | No se menciona> # Estado del vehículo en el taller / Prevision de finalización / Diagnostico o presupuesto de un coche en taller
+    Estado del vehículo : <SI | NO> # Si el cliente pregunta por el estado del vehículo
     Estado del Material : <Estado | No se menciona> # Recepcion de alguna pieza o material / Disponibilidad de la pieza / Prevision de llegada de la pieza
-    Estado autorización : <Estado | No se menciona> # Autorizacion de un tercero (Empresa de renting) para realizar la reparación
+    Estado autorización : <SI | NO> # El cliente pregunta por la autorizacion de un tercero (Empresa de renting) para realizar la reparación
 
-  prevision_finalizacion: <SI | NO>
-  prevision_llegada_pieza: <SI | NO>
+  prevision_finalizacion: <SI | NO> # El operador se compremete a dar una previsión de finalización de la reparación
+  prevision_llegada_pieza: <SI | NO> # El operador comprueba si ha llegado la pieza o no
 
 # Si tipologia es "Otros":
 Otros:
@@ -114,41 +121,51 @@ Otros:
 
 sentimiento_cliente: <Positivo | Negativo | Neutral>
 
-# Valora cualitativaMENTE de las directrices empleadas (contesta por cada una que venga al caso si se ha aplicado o no) por el agente:
+# Responde con un SI o un NO a si el agente a empleado las siguientes directrices.
+# Responde a las directrices generales SIEMPRE.
+# Para las directrices específicas de categorías de anteriores especificadas (neumáticos, mecánica ligera, etc.):
+#   - Si la categoría de reparación correspondiente NO está presente en la lista 'tipologia_reparacion', la lista de directrices para esa categoría debe ser UNA LISTA VACÍA '[]'.
+#   - Si la categoría SÍ está presente en 'tipologia_reparacion', rellena la lista con SI/NO según corresponda.
+
 valoracion_qualitativa:
   directrices_generales:
-    - Solo muestra proactividad para presupuestar en neumáticos
+    - No muestra proactividad para dar presupuestos a no ser que sean neumaticos : <SI | NO>
 
-
-  # Si tipologia es "quiere_ir_al_taller" && quiere_ir_al_taller = "Nueva cita" && tipologia_reparacion contiene neumáticos:
-  directrizes_neumaticos:
-    - Habla de una marca de las 3 siguientes (RoadX, Falken, Pirelli)
-    - Menciona que el precio incluye montaje, equilibrado, valvula y IVA
-    - Menciona que el precio no incluye alineación
-    - Da al taller amplitud para el tiempo de reparación
+  # Si has añadido neumaticos al campo de "tipologia_reparacion", comprueba las siguientes directrices:
+  directrizes_neumaticos: []
+    - Habla de una marca de las 3 siguientes (RoadX, Falken, Pirelli) : <SI | NO>
+    - Menciona que el precio incluye montaje, equilibrado, valvula y IVA : <SI | NO>
+    - Menciona que el precio no incluye alineación : <SI | NO>
+    - Da al taller amplitud para el tiempo de reparación : <SI | NO>
 
   # Si es un pinchazo:
-  directrizes_pinchazo:
-    - Averigua si la rueda pierde aire o el vehiculo no puede circular
-    - Da al taller amplitud para el tiempo de reparación
-    - Si el cliente insiste
+  directrizes_pinchazo: []
+    - Averigua si la rueda pierde aire o el vehiculo no puede circular : <SI | NO>
+    - Da al taller amplitud para el tiempo de reparación : <SI | NO>
+    - Si el cliente insiste : <SI | NO>
 
-  # Si tipologia es "quiere_ir_al_taller" && quiere_ir_al_taller = "Nueva cita" && tipologia_reparacion contiene mecanica ligera:
-  directrizes_mecanica_ligera:
-    - Identifica correctamente el vehiculo
-    - Concreta cita sin dar precio
-    - Da al taller amplitud para el tiempo de reparación
+  # Si has añadido mecanica ligera al campo de "tipologia_reparacion", comprueba las siguientes directrices:
+  directrizes_mecanica_ligera: []
+    - Identifica correctamente el vehiculo : <SI | NO>
+    - Concreta cita sin dar precio : <SI | NO>
+    - Da al taller amplitud para el tiempo de reparación : <SI | NO>
 
-  # Si tipologia es "quiere_ir_al_taller" && quiere_ir_al_taller = "Nueva cita" && tipologia_reparacion contiene mecanica pesada:
-  directrizes_mecanica_pesada:
-    - No diagnostica por telefono, pasa a taller
-    - No se da precio ni tiempo de reparación
-    - Da a entender al cliente que el vehiculo debe quedar un tiempo prudencial en el taller
+  #  Si has añadido mecanica pesada al campo de "tipologia_reparacion", comprueba las siguientes directrices:
+  directrizes_mecanica_pesada: []
+    - No diagnostica por telefono, pasa a taller : <SI | NO>
+    - No se da precio ni tiempo de reparación : <SI | NO>
+    - Da a entender al cliente que el vehiculo debe quedar un tiempo prudencial en el taller : <SI | NO>
 
   # Si el vehiculo es de renting:
-    - Da a entender al cliente que se debe pasar a taller para solicitar autorizacion al renting
-    - Da a entender que pasa para solicitar autorizacion y no para la reparación
+  directrices_renting: []
+    - Da a entender al cliente que se debe pasar a taller para solicitar autorizacion al renting : <SI | NO>
+    - Da a entender que pasa para solicitar autorizacion y no para la reparación : <SI | NO>
 
-  # Si tipologia es coche_en_taller && consulta_estado:
-    - Existe satisfacción del cliente en la gestion
-    - Da a entender al cliente que si no se cumplira el terminio se le avisarà.
+  # Si la llamada es una consulta de un coche en el taller:
+  directrices_consulta: []
+    - Existe satisfacción del cliente en la gestion : <SI | NO>
+    - Da a entender al cliente que si no se cumplira el terminio se le avisarà. : <SI | NO>
+
+  # Si la llamada es para agendar una revision:
+  directrices_revision: []
+    - Le pregunta al cliente los kilometros del vehiculo : <SI | NO>

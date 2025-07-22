@@ -180,9 +180,6 @@ class CallTranscriber:
         }
 
     def pyannote_speaker_separation(self, audio_path: str, sample_rate: int = 16000):
-        from pyannote.audio import Pipeline
-        import torchaudio
-
         # Load audio
         waveform, _ = torchaudio.load(audio_path)
         waveform = waveform.mean(dim=0).numpy()  # mono
