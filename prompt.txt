@@ -12,6 +12,7 @@ tipologia:
 - Quiere ir al taller
 - Coche en taller
 - Otros
+- Llamada cortada
 
 # En función de la tipología elegida, añade los subcampos correspondientes.
 
@@ -77,6 +78,7 @@ Nueva_cita:
     - <string>  # Ej: "cambio de aceite", "ITV", "frenos"
 
   # Si tipologia_reparacion contiene neumaticos;
+  # Corrige automaticamente errores comunes de transcripcion en marcas comerciales, utiliza un diccionario interno o conocimiento general para interpretar terminos mal escritos y devuelvelos escritos correctamente.
   menciones_marca_neumaticos:
     - <string>  # Ej: "Michelin", "Falken", "Pirelli", "Kleber", "Dunlop", etc.
 
