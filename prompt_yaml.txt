@@ -1,18 +1,19 @@
-Analiza la siguiente transcripción de una llamada para RODI MOTOR SERVICES y clasifícala.
+Analiza la siguiente transcripción de una llamada de servicio del taller RODI MOTOR SERVICES, y clasifícala.
+Ten en cuenta possibles errores de transcripción, y infiere el significado correcto teniendo en cuenta el contexto de la llamada.
 
 **Prioriza el motivo principal de la llamada** Responde únicamente con el contenido de un archivo YAML. **NO INCLUYAS NINGÚN ENCABEZADO, TEXTO INTRODUCTORIO, CONCLUSIÓN, EXPLICACIÓN ADICIONAL NI MARCADORES DE BLOQUE DE CÓDIGO (es decir, NO uses ```yaml ni ```).** La estructura de la respuesta debe ser EXACTAMENTE la siguiente:
 
-id_llamada: <string>
+id_llamada: <ID de la llamada> # Un identificador único para la llamada, puede ser un número o una cadena alfanumérica.
 fecha_hora: <ISO 8601>
-tipo_vehiculo: <Moto | Coche | Camión | Furgoneta | Otro>
+tipo_vehiculo: <Moto | Coche | Camión | Furgoneta | Autocaravana | Otro> # Si no se menciona, usa "Coche"
+tipo_de_cliente: <Particular | Empresa | Renting | Otro>  # Si no se menciona, usa "Particular"
 
 tipologia:
 # Una de las siguientes categorías principales:
 
-- Quiere ir al taller
-- Coche en taller
+- Quiere ir al taller # El cliente quiere concertar una cita para llevar el vehículo al taller o desea un presupuesto.
+- Coche en taller # El cliente consulta el estado de un vehículo que ya está en el taller.
 - Otros
-- Llamada cortada
 
 # En función de la tipología elegida, añade los subcampos correspondientes.
 
@@ -80,7 +81,7 @@ Nueva_cita:
   # Si tipologia_reparacion contiene neumaticos;
   # Corrige automaticamente errores comunes de transcripcion en marcas comerciales, utiliza un diccionario interno o conocimiento general para interpretar terminos mal escritos y devuelvelos escritos correctamente.
   menciones_marca_neumaticos:
-    - <string>  # Ej: "Michelin", "Falken", "Pirelli", "Kleber", "Dunlop", etc.
+    - <string>  # Ej: "Michelin", "Falken", "Pirelli", "Kleber", "Dunlop", "BFGoodRich" etc.
 
   es_llamada_comercial: <SI | NO> # Se considerara comercial cualquier llamada donde se intenta llegar a un acuerdo de visita o venta, aunque llame el cliente
   presupuesto: <SI | NO | ORIENTATIVO>  # Si se ofrece un presupesto al cliente o se le da un precio orientativo (no definitivo)
@@ -90,8 +91,8 @@ Nueva_cita:
   cita_concertada: <SI | NO>
 
   # Si cita_concertada es = NO, añade el siguiente campo, de lo contrario, no lo añadas:
-  no_cita_concertada:
-    motivo: <VUELVE A LLAMAR CLIENTE | VUELVE A LLAMAR OPERADOR | PENDIENTE AUTORIZACION RENTING>
+  no_cita_concertada: # No se ha concertado una cita en la llamada
+    motivo: <SE LO PIENSA o VOLVERA A LLAMAR EL CLIENTE | VOLVERA A LLAMAR EL OPERADOR | VOLVERA A LLAMAR EL TALLER | SE CORTA LA LLAMADA | PENDIENTE AUTORIZACION RENTING | POR PRECIO | NO HAY ACUERDO DE DIA Y HORA | PASARA PRESENCIALMENTE | COGE HORA EN WEB> # Motivo por el que no se ha concertado la cita>
     persistencia_operador: <SI | NO>
 
 # Si quiere_ir_al_taller = "Cambio de cita":
@@ -110,7 +111,7 @@ Cambio_de_cita:
 # Si tipologia = "Coche en taller":
 Coche_en_taller:
   consulta_estado:
-    Estado del vehículo : <SI | NO> # Si el cliente pregunta por el estado del vehículo
+    Estado del vehículo : <SI | NO> # Si el cliente pregunta por el estado de la reparación del vehículo
     Estado del Material : <Estado | No se menciona> # Recepcion de alguna pieza o material / Disponibilidad de la pieza / Prevision de llegada de la pieza
     Estado autorización : <SI | NO> # El cliente pregunta por la autorizacion de un tercero (Empresa de renting) para realizar la reparación
 
@@ -119,7 +120,7 @@ Coche_en_taller:
 
 # Si tipologia es "Otros":
 Otros:
-  subcategoria_otros: <Información general | Facturas | Comunicación interna | Proveedores | Promoción | Consulta de reparacion reciente | Reclamación>
+  subcategoria_otros: <Información general | Facturas | Comunicación interna | Proveedores | Promoción | Colectivos | Consulta de reparacion reciente | Reclamación>
 
 sentimiento_cliente: <Positivo | Negativo | Neutral>
 
@@ -130,7 +131,8 @@ sentimiento_cliente: <Positivo | Negativo | Neutral>
 #   - Si la categoría SÍ está presente en 'tipologia_reparacion', rellena la lista con SI/NO según corresponda.
 
 valoracion_qualitativa:
-  directrices_generales:
+  # Si la tipologia de la llamada es "Quiere ir al taller":
+  directrices_quiere_ir_al_taller: []
     - No muestra proactividad para dar presupuestos a no ser que sean neumaticos : <SI | NO>
 
   # Si has añadido neumaticos al campo de "tipologia_reparacion", comprueba las siguientes directrices:
@@ -152,13 +154,17 @@ valoracion_qualitativa:
     - Concreta cita sin dar precio : <SI | NO>
     - Da al taller amplitud para el tiempo de reparación : <SI | NO>
 
+    # Si dentro de mecanica_ligera has añadido "carga_gas" o "carga_aire_acondicionado":
+    directrizes_carga_gas_aire_acondicionado: []
+      - Avisa al cliente que hay una fuga : <SI | NO>
+
   #  Si has añadido mecanica pesada al campo de "tipologia_reparacion", comprueba las siguientes directrices:
   directrizes_mecanica_pesada: []
     - No diagnostica por telefono, pasa a taller : <SI | NO>
     - No se da precio ni tiempo de reparación : <SI | NO>
     - Da a entender al cliente que el vehiculo debe quedar un tiempo prudencial en el taller : <SI | NO>
 
-  # Si el vehiculo es de renting:
+  # Si el vehiculo es de renting y la tipologia es "Quiere ir al taller":
   directrices_renting: []
     - Da a entender al cliente que se debe pasar a taller para solicitar autorizacion al renting : <SI | NO>
     - Da a entender que pasa para solicitar autorizacion y no para la reparación : <SI | NO>
@@ -171,3 +177,8 @@ valoracion_qualitativa:
   # Si la llamada es para agendar una revision:
   directrices_revision: []
     - Le pregunta al cliente los kilometros del vehiculo : <SI | NO>
+    - Confirma con el cliente la matricula o el modelo del vehiculo : <SI | NO>
+
+  # Si la llamada es para agendar una pre-ITV:
+  directrices_preitv: []
+    - Le ofrece al cliente cambiar el aceite y los filtros : <SI | NO>
