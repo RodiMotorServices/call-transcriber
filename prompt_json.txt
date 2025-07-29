@@ -2,7 +2,7 @@
 // Ten en cuenta possibles errores de transcripción, y infiere el significado correcto teniendo en cuenta el contexto de la llamada (Llamada de un taller entre un agente y un cliente).
 
 // Prioriza el motivo principal de la llamada
-// Responde únicamente con el contenido de un archivo JSON.
+// Responde únicamente con el contenido de un archivo JSON y exactamente en el orden que se indica.
 // NO INCLUYAS NINGÚN ENCABEZADO, TEXTO INTRODUCTORIO, CONCLUSIÓN, EXPLICACIÓN ADICIONAL NI BLOQUES DE CÓDIGO.
 // No uses etiquetas como '''json, ``` o similares en ningún caso.
 // La estructura de la respuesta debe ser el objeto JSON puro y debe seguir EXACTAMENTE la siguiente estructura:
@@ -13,9 +13,10 @@
   "tipo_vehiculo": "<Moto | Coche | Camión | Furgoneta | Autocaravana | Otro>", // Si no se menciona, usar "Coche"
   "tipo_de_cliente": "<Particular | Empresa | Renting | Otro>", // Si no se menciona, usar "Particular"
 
-  "tipologia": [
-    "<Quiere ir al taller | Coche en taller | Otros>" // Solo una opción
-  ],
+     // Si tipo_de_cliente es "Renting":
+     "empresa_de_renting": "<arval, ayvens, leaseplan, ald, bbva, caixabank, santander, euromaster, alquiber, europcar, alphabet, andacar, athlon, bujarkay, fraikin, northgate, otros>",
+
+  "tipologia": "<Quiere ir al taller | Coche en taller | Otros>", // Solo una opción
 
   // Si tipologia es "Quiere ir al taller":
   "Quiere_ir_al_taller": "<Nueva cita | Cambio de cita>",
@@ -32,46 +33,62 @@
       "Otros"
     ],
 
-    // Incluir solo si corresponde en 'tipologia_reparacion'
-    "Neumaticos": ["incluye_presupuesto", "permuta", "cruce", "cruzar_ruedas", "equilibrado_neumaticos", "rotar_ruedas_temporada", "hinchado_nitrogeno", "seguro_neumatico", "valvulas", "ruedas_en_custodia", "pinchazo", "rebenton", "perdida_aire"],
+    {
+      // Si tipologia_reparacion contiene "Neumáticos"
+      "Neumaticos": ["incluye_presupuesto", "permuta", "cruce", "cruzar_ruedas", "equilibrado_neumaticos", "rotar_ruedas_temporada", "hinchado_nitrogeno", "seguro_neumatico", "valvulas", "ruedas_en_custodia", "pinchazo", "rebenton", "perdida_aire"],
 
-    "revision_mantenimiento": ["incluye_preitv", "revision", "revision_oficial", "mantenimiento", "cambio_aceite", "mirar_coche", "cambio_filtros"],
+      // Si tipologia_reparacion contiene "Revisión/Mantenimiento"
+      "revision_mantenimiento": ["incluye_preitv", "revision", "revision_oficial", "mantenimiento", "cambio_aceite", "mirar_coche", "cambio_filtros"],
 
-    // Incluir solo si 'revision_mantenimiento' contiene "cambio_filtros"
-    "cambio_filtros": ["aceite", "aire", "habitaculo", "combustible"],
+        // Incluir solo si 'revision_mantenimiento' contiene "cambio_filtros"
+        "cambio_filtros": ["aceite", "aire", "habitaculo", "combustible"],
 
-    "mecanica_ligera": ["alineacion", "frenos", "pastillas_frenos", "discos_frenos", "bujias", "liquidos_frenos", "sensor_presion_neumaticos", "bateria", "carga_gas", "carga_aire_acondicionado"],
+      // Si tipologia_reparacion contiene "Mecánica Ligera"
+      "mecanica_ligera": ["alineacion", "frenos", "pastillas_frenos", "discos_frenos", "bujias", "liquidos_frenos", "sensor_presion_neumaticos", "bateria", "carga_gas", "carga_aire_acondicionado"],
 
-    "Mecanica_Pesada": ["amortiguadores", "alternador", "suspension", "correa_distribucion", "bomba_agua", "manguitos", "corra_alternador", "tubo_escape", "embrague", "volante_bimasa", "cadena_distribucion", "valvula_egr", "motor", "calentador", "radiadores", "pulir_faros", "correas_transmision_auxiliares", "transmision", "trapezio", "direccion", "copelas", "silentblocks", "sonda_lambda", "aceite_caja_cambios", "valvulina", "turbo", "contacto", "llaves", "liquido_dirección", "intercooler", "compresor", "catalizador", "amortiguador_maletero", "culata", "tapa_balancines", "frenos_motor", "condensador", "guardapolvos", "rotulas", "fuelles", "poleas", "reten", "elevalunas", "palier", "cojinetes"],
+      // Si tipologia_reparacion contiene "Mecánica Pesada"
+      "Mecanica_Pesada": ["amortiguadores", "alternador", "suspension", "correa_distribucion", "bomba_agua", "manguitos", "corra_alternador", "tubo_escape", "embrague", "volante_bimasa", "cadena_distribucion", "valvula_egr", "motor", "calentador", "radiadores", "pulir_faros", "correas_transmision_auxiliares", "transmision", "trapezio", "direccion", "copelas", "silentblocks", "sonda_lambda", "aceite_caja_cambios", "valvulina", "turbo", "contacto", "llaves", "liquido_dirección", "intercooler", "compresor", "catalizador", "amortiguador_maletero", "culata", "tapa_balancines", "frenos_motor", "condensador", "guardapolvos", "rotulas", "fuelles", "poleas", "reten", "elevalunas", "palier", "cojinetes"],
 
-    "recambio": ["escobillas", "retrovisores", "manetas", "bombillas", "lamparas", "faros", "matriculas", "cristales", "lunas"],
+      // Si tipologia_reparacion contiene "Recambio"
+      "recambio": ["escobillas", "retrovisores", "manetas", "bombillas", "lamparas", "faros", "matriculas", "cristales", "lunas"],
 
-    "averia_diagnostico": ["perdida_aceite", "perdida_liquido_refrigerante", "no_arranca", "hace_ruido", "huele_fuerte", "luz_tablero", "ratea", "no_corre", "no_acelera", "inyectores", "fallo_electrico", "sistema_lavado", "pierde_fuerza"],
+      // Si tipologia_reparacion contiene "Avería/Diagnóstico"
+      "averia_diagnostico": ["perdida_aceite", "perdida_liquido_refrigerante", "no_arranca", "hace_ruido", "huele_fuerte", "luz_tablero", "ratea", "no_corre", "no_acelera", "inyectores", "fallo_electrico", "sistema_lavado", "pierde_fuerza"],
+    }
 
-    "terminos_clave": ["<string>"] // Ej: "cambio de aceite", "ITV"
-,
-    "menciones_marca_neumaticos": ["<string>"] // Solo si se habla de neumáticos. Corrige errores de marca automáticamente.
-,
-    "es_llamada_comercial": "<SI | NO>",  // Considera comercial cualquier llamada donde se intenta llegar a un acuerdo de visita o venta, aunque llame el cliente.
-    "presupuesto": "<SI | NO | ORIENTATIVO>", // Si se ofrece un presupusto al cliente o se le da un precio orientativo (no definitivo).
-    "confirmacion_datos": "<SI | NO>",  // Si se confirma o corrige algun dato del cliente (matricula, telefono, email, etc.)
-    "descuento": "<SI | NO>",
-    "cita_concertada": "<SI | NO>",
+    // Añadir terminos clave mencionados en la llamada
+    "terminos_clave": ["<string>"], // Ej: "cambio de aceite", "ITV"
 
-    // Incluir solo si 'cita_concertada' es "NO"
-    "no_cita_concertada": {
-      "motivo": "<SE LO PIENSA | VOLVERA A LLAMAR EL CLIENTE | VOLVERA A LLAMAR EL OPERADOR | VOLVERA A LLAMAR EL TALLER | SE CORTA LA LLAMADA | PENDIENTE AUTORIZACION RENTING | POR PRECIO | NO HAY ACUERDO DE DIA Y HORA | PASARA PRESENCIALMENTE | COGE HORA EN WEB>",
-      "persistencia_operador": "<SI | NO>"
+    "menciones_marca_neumaticos": ["<string>"], // Añadir solo si se incluye neumáticos en tipologia_reparacion. Corrige errores de marca automáticamente.
+
+    {
+      // Campos relacionados con comercialización. Solo deben aparecer dentro de nueva cita.
+      "es_llamada_comercial": "<SI | NO>",  // Considera comercial cualquier llamada donde se intenta llegar a un acuerdo de visita o venta, aunque llame el cliente.
+      "presupuesto": "<SI | NO | ORIENTATIVO>", // Si se ofrece un presupusto al cliente o se le da un precio orientativo (no definitivo).
+      "confirmacion_datos": "<SI | NO>",  // Si se confirma o corrige algun dato del cliente (matricula, telefono, email, etc.)
+      "descuento": "<SI | NO>", // Si se ofrece un descuento al cliente
+      "cita_concertada": "<SI | NO>",
+
+      // Incluir solo si 'cita_concertada' es "NO"
+      "no_cita_concertada": {
+        "motivo": "<SE LO PIENSA | VOLVERA A LLAMAR EL CLIENTE | VOLVERA A LLAMAR EL OPERADOR | VOLVERA A LLAMAR EL TALLER / MECANICO | SE CORTA LA LLAMADA | PENDIENTE AUTORIZACION RENTING | POR PRECIO | NO HAY ACUERDO DE DIA Y HORA | PASARA PRESENCIALMENTE | COGE HORA EN WEB>",
+        "persistencia_operador": "<SI | NO>"  // Si el operador ha insistido en concertar la cita.
+      }
     }
   },
 
   // Incluir solo si 'Quiere_ir_al_taller' es "Cambio de cita"
   "Cambio_de_cita": {
+
     // Escoje solo una opción
     "tipo_cambio": "<Avanzar | Retrasar | Cancelar>",
+
+    // Si se ha escogido "Retrasar"
     "retrasar": {
       "motivo_retraso": "<Motivo | No se menciona>"
     },
+
+    // Si se ha escogido "Cabcelar"
     "cancelar": {
       "motivo_cancelacion": "<Hecho en otro taller | No esta de acuerdo con el precio | Vendrá pero no sabe fecha | No se menciona>",
       "persistencia_operador": "<SI | NO>"
@@ -81,9 +98,9 @@
   // Incluir solo si 'tipologia' es "Coche en taller"
   "Coche_en_taller": {
     "consulta_estado": {
-      "Estado del vehículo": "<SI | NO>",
-      "Estado del Material": "<Estado | No se menciona>",
-      "Estado autorización": "<SI | NO>"
+      "Estado del vehículo": "<SI | NO>", // Si el cliente pregunta por el estado de reparacion del vehículo.
+      "Estado del Material": "<Estado | No se menciona>", // Consulta sobre disponibilidad / recepción de alguna pieza o material.
+      "Estado autorización": "<SI | NO>"  // Si el cliente consulta sobre autorización de un tercero (Renting, seguro, etc.)
     },
     "prevision_finalizacion": "<SI | NO>",
     "prevision_llegada_pieza": "<SI | NO>"
@@ -97,13 +114,14 @@
 
   "sentimiento_cliente": "<Positivo | Negativo | Neutral>",
 
+
+  // Valora con si o no las siguientes directrices, contesta solo las directrices sobre las cuales se cumpla la condición indicada.
   "valoracion_qualitativa": {
-    // Siempre presente. Solo rellenar si se ha seleccionado la categoria correspondiente, si no, usar []
 
-    // Si la tipologia de la llamada es "Quiere ir al taller" y no es "Neumáticos":
-    "directrices_quiere_ir_al_taller": ["No muestra proactividad para dar presupuestos a no ser que sean neumaticos : <SI | NO>"],
+    // Si la tipologia de la llamada es "Quiere ir al taller" y tipologia_reparacion no contiene "Neumáticos":
+    "directrices_quiere_ir_al_taller": ["El agente muestra proactividad para dar presupuestos: <SI | NO>"],
 
-    // Si la tipologia de la reparación es "Neumáticos":
+    // Si la tipologia de la llamada es "Quiere ir al taller" y la tipologia_reparacion de la reparación contiene "Neumáticos":
     "directrizes_neumaticos": [
       "Habla de una marca de las 3 siguientes (RoadX, Falken, Pirelli) : <SI | NO>",
       "Menciona que el precio incluye montaje, equilibrado, valvula y IVA : <SI | NO>",
@@ -111,26 +129,28 @@
       "Da al taller amplitud para el tiempo de reparación : <SI | NO>"
     ],
 
-    // Si se menciona un pinchazo;
+    // Si la tipologia de la llamada es "Quiere ir al taller" y la tipologia_reparacion contiene  "Neumáticos" y se ha seleccionado "pinchazo":
     "directrizes_pinchazo": [
       "Averigua si la rueda pierde aire o el vehiculo no puede circular : <SI | NO>",
       "Da al taller amplitud para el tiempo de reparación : <SI | NO>",
-      "Si el cliente insiste : <SI | NO>"
     ],
 
+    // Si la tipologia de la reparacion contiene mecanica ligera:
     "directrizes_mecanica_ligera": [
       "Identifica correctamente el vehiculo : <SI | NO>",
       "Concreta cita sin dar precio : <SI | NO>",
       "Da al taller amplitud para el tiempo de reparación : <SI | NO>"
     ],
 
+    // Si la tipologia de la reparacion contiene mecanica ligera y dentro de mecanica ligera se ha seleccionado "carga_gas":
     "directrizes_carga_gas_aire_acondicionado": [
       "Avisa al cliente que hay una fuga : <SI | NO>"
     ],
 
+    // Si la tipologia de la reparacion contiene mecanica pesada:
     "directrizes_mecanica_pesada": [
-      "No diagnostica por telefono, pasa a taller : <SI | NO>",
-      "No se da precio ni tiempo de reparación : <SI | NO>",
+      "El agente informa que el diagnostico sera en taller? : <SI | NO>",
+      "El agente da precio o tiempo de reparación? : <SI | NO>",
       "Da a entender al cliente que el vehiculo debe quedar un tiempo prudencial en el taller : <SI | NO>"
     ],
 
