@@ -132,6 +132,11 @@ categorizations
 new_transcriptions
 mp3
 transcriptions_txt
+categorizations_gpt_v1
+transcriptions_json
+
+categorizations_json
+categorizations_json_v2
 
 # But keep example files if they're small and important
 !example_transcription.json

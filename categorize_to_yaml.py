@@ -6,6 +6,7 @@ Handles single files or directories and stores outputs in ./categorizations.
 import argparse
 import os
 from dotenv import load_dotenv
+from google.generativeai.types import GenerationConfig
 import google.generativeai as genai
 
 def main():
@@ -13,7 +14,7 @@ def main():
 
     parser = argparse.ArgumentParser(description="Categorize transcriptions into compact YAML format.")
     parser.add_argument("input", help="Path to a transcription file or directory of transcription files.")
-    parser.add_argument("-p", "--prompt", type=str, default="./prompt.txt", help="Path to the input prompt file.")
+    parser.add_argument("-p", "--prompt", type=str, default="./prompt_json.txt", help="Path to the input prompt file.")
 
     args = parser.parse_args()
 
@@ -27,7 +28,7 @@ def main():
         prompt_content = prompt_file.read()
 
     # Create output directory
-    output_dir = "./categorizations"
+    output_dir = "./categorizations_json_v2"
     os.makedirs(output_dir, exist_ok=True)
 
     # Detect and collect transcription files
@@ -40,7 +41,7 @@ def main():
         try:
             yaml_output = generate_yaml(file_path, prompt_content)
             base_name = os.path.splitext(os.path.basename(file_path))[0]
-            output_path = os.path.join(output_dir, f"{base_name}.yaml")
+            output_path = os.path.join(output_dir, f"{base_name}.json")
 
             with open(output_path, "w") as out_file:
                 out_file.write(yaml_output)
@@ -80,7 +81,18 @@ def generate_yaml(transcription_path, prompt_content):
     genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
     model = genai.GenerativeModel("gemini-2.5-flash")
 
-    return model.generate_content(full_prompt).text
+    # Parameter tuning for maximizing output determinism
+    generation_cfg = GenerationConfig(
+        temperature=0.0,  # Lower temperature for more deterministic output
+        top_p=1.0,  # Use all tokens
+    )
+
+    response = model.generate_content(
+        full_prompt,
+        generation_config=generation_cfg,
+    )
+
+    return response.text
 
 if __name__ == "__main__":
     main()

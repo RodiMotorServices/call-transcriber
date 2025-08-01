@@ -32,7 +32,7 @@ Nueva_cita:
   tipologia_reparacion: [Neumáticos, Revisión/Mantenimiento, Mecánica Ligera,
                          Mecánica Pesada, Recambio, Avería/Diagnóstico, Otros]   # Uno o varios
 
-    # Si la reparación tipologia_reparacion tiene Neumáticos:
+    # Si tipologia_reparacion tiene Neumáticos:
     Neumaticos: [incluye_presupuesto, permuta, cruce,
                  cruzar_ruedas, equilibrado_neumaticos, rotar_ruedas_temporada,
                  hinchado_nitrogeno, seguro_neumatico, valvulas, ruedas_en_custodia,

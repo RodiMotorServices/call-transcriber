@@ -1,13 +1,17 @@
-// Analiza la siguiente transcripción de una llamada de servicio del taller RODI MOTOR SERVICES, y categorizala.
-// Ten en cuenta possibles errores de transcripción, y infiere el significado correcto teniendo en cuenta el contexto de la llamada (Llamada de un taller entre un agente y un cliente).
+// Analiza la siguiente transcripción en formato YAML de una llamada de servicio del taller RODI MOTOR SERVICES, y categorizala.
+// Ten en cuenta possibles errores de transcripción, y deduce el significado correcto según el contexto (Llamada de un taller entre un agente y un cliente).
 
-// Prioriza el motivo principal de la llamada
-// Responde únicamente con el contenido de un archivo JSON y exactamente en el orden que se indica.
-// NO INCLUYAS NINGÚN ENCABEZADO, TEXTO INTRODUCTORIO, CONCLUSIÓN, EXPLICACIÓN ADICIONAL NI BLOQUES DE CÓDIGO.
-// No uses etiquetas como '''json, ``` o similares en ningún caso.
-// La estructura de la respuesta debe ser el objeto JSON puro y debe seguir EXACTAMENTE la siguiente estructura:
+// Sigue ESTRICTAMENTE esta estructura y reglas de inclusión de campos:
+// 1. Solo incluye un campo si su condicion de aparición se cumple.
+// 2. Si un campo està marcado como obligatorio, haz que aparezca siempre.
+// 3. Un comentario define una condición de aparición para todos los campos que lo siguen, hasta encontrar un nuevo comentario o el final del objeto JSON.
+// 4. El orden de los campos debe ser EXACTAMENTE el mismo que en el esquema proporcionado.
+//
+
+// RESPONDE ÚNICAMENTE CON EL JSON PURO, SIN COMENTARIOS NI MARCADORES DE CÓDIGO, ni explicaciones, y sigue exactamente el siguiente esquema:
 
 {
+  // Campos obligatorios:
   "id_llamada": "<ID de la llamada>", // Un identificador único para la llamada, puede ser un número o una cadena alfanumérica.
   "fecha_hora": "<ISO 8601>",
   "tipo_vehiculo": "<Moto | Coche | Camión | Furgoneta | Autocaravana | Otro>", // Si no se menciona, usar "Coche"
@@ -16,6 +20,7 @@
      // Si tipo_de_cliente es "Renting":
      "empresa_de_renting": "<arval, ayvens, leaseplan, ald, bbva, caixabank, santander, euromaster, alquiber, europcar, alphabet, andacar, athlon, bujarkay, fraikin, northgate, otros>",
 
+  // Prioriza como motivo "quiere ir al taller" cualquier llamada o consulta donde la intencion inicial del cliente sea ir al taller, hacer una reparacion, o comprar algun producto, accesorio o servicio, sin importar que al final no se llegue a un acuerdo.
   "tipologia": "<Quiere ir al taller | Coche en taller | Otros>", // Solo una opción
 
   // Si tipologia es "Quiere ir al taller":
@@ -59,11 +64,11 @@
     // Añadir terminos clave mencionados en la llamada
     "terminos_clave": ["<string>"], // Ej: "cambio de aceite", "ITV"
 
-    "menciones_marca_neumaticos": ["<string>"], // Añadir solo si se incluye neumáticos en tipologia_reparacion. Corrige errores de marca automáticamente.
+    "menciones_marca_neumaticos": ["<RoadX, Kleber, Pirelli, Falken, Michelin, Bridgestone, Dunlop, Continental, etc...>"], // Añadir solo si se incluye neumáticos en tipologia_reparacion. Corrige errores de transcripcion de las marcas automáticamente.
 
     {
       // Campos relacionados con comercialización. Solo deben aparecer dentro de nueva cita.
-      "es_llamada_comercial": "<SI | NO>",  // Considera comercial cualquier llamada donde se intenta llegar a un acuerdo de visita o venta, aunque llame el cliente.
+      "es_llamada_comercial": "<SI | NO>",  // Considera comercial cualquier llamada donde se intenta llegar a un acuerdo de visita o venta, aunque llame el cliente. Aunque no se mencione explícitamente o se hable de un contacto futuro
       "presupuesto": "<SI | NO | ORIENTATIVO>", // Si se ofrece un presupusto al cliente o se le da un precio orientativo (no definitivo).
       "confirmacion_datos": "<SI | NO>",  // Si se confirma o corrige algun dato del cliente (matricula, telefono, email, etc.)
       "descuento": "<SI | NO>", // Si se ofrece un descuento al cliente
@@ -88,7 +93,7 @@
       "motivo_retraso": "<Motivo | No se menciona>"
     },
 
-    // Si se ha escogido "Cabcelar"
+    // Si se ha escogido "Cancelar"
     "cancelar": {
       "motivo_cancelacion": "<Hecho en otro taller | No esta de acuerdo con el precio | Vendrá pero no sabe fecha | No se menciona>",
       "persistencia_operador": "<SI | NO>"
@@ -109,16 +114,16 @@
   // Incluir solo si 'tipologia' es "Otros"
   "Otros": {
   // Contesta error cuando el cliente se haya equivocado de número.
-    "subcategoria_otros": "<Información general | Facturas | Comunicación interna | Proveedores | Promoción | Colectivos | Consulta de reparacion reciente | Reclamación | Error>"
+    "subcategoria_otros": "<Información general | Facturas | Comunicación interna | Proveedores | Promoción | Colectivos | Reclamación/Reparación reciente | Error>"
   },
 
   "sentimiento_cliente": "<Positivo | Negativo | Neutral>",
 
 
-  // Valora con si o no las siguientes directrices, contesta solo las directrices sobre las cuales se cumpla la condición indicada.
+  // Valora con si o no las siguientes directrices, para cada directriz, comprueba si se cumple la condicion y si es así, contestala, si no es asi, no la incluyas.
   "valoracion_qualitativa": {
 
-    // Si la tipologia de la llamada es "Quiere ir al taller" y tipologia_reparacion no contiene "Neumáticos":
+    // Si tipologia es "Quiere ir al taller", se escoge "Nueva cita" y tipologia_reparacion **NO contiene** "Neumáticos" incluir este campo SIEMPRE:
     "directrices_quiere_ir_al_taller": ["El agente muestra proactividad para dar presupuestos: <SI | NO>"],
 
     // Si la tipologia de la llamada es "Quiere ir al taller" y la tipologia_reparacion de la reparación contiene "Neumáticos":
@@ -149,15 +154,15 @@
 
     // Si la tipologia de la reparacion contiene mecanica pesada:
     "directrizes_mecanica_pesada": [
-      "El agente informa que el diagnostico sera en taller? : <SI | NO>",
-      "El agente da precio o tiempo de reparación? : <SI | NO>",
+      "Informa que el diagnostico sera en taller? : <SI | NO>",
+      "Da precio o tiempo de reparación? : <SI | NO>",
       "Da a entender al cliente que el vehiculo debe quedar un tiempo prudencial en el taller : <SI | NO>"
     ],
 
     // Si el tipo de cliente es "Renting":
     "directrices_renting": [
       "Da a entender al cliente que se debe pasar a taller para solicitar autorizacion al renting : <SI | NO>",
-      "Da a entender que pasa para solicitar autorizacion y no para la reparación : <SI | NO>"
+      "Da a entender que el cliente debe pasar para solicitar autorizacion y no para la reparación : <SI | NO>"
     ],
 
     // Si la tipologia de la llamada es "Coche en taller":
@@ -166,11 +171,13 @@
       "Da a entender al cliente que si no se cumplira el terminio se le avisarà. : <SI | NO>"
     ],
 
+    // Si la tipologia de la llamada es "Quiere ir al taller" y la tipologia_reparacion contiene "Revisión/Mantenimiento":
     "directrices_revision": [
       "Le pregunta al cliente los kilometros del vehiculo : <SI | NO>",
       "Confirma con el cliente la matricula o el modelo del vehiculo : <SI | NO>"
     ],
 
+    // Si la tipologia de la llamada es "Quiere ir al taller", la tipologia_reparacion contiene "Revisión/Mantenimiento" y dentro de revisión/mantenimiento se ha seleccionado "incluye_preitv":
     "directrices_preitv": [
       "Le ofrece al cliente cambiar el aceite y los filtros : <SI | NO>"
     ]
